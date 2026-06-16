@@ -79,23 +79,24 @@ extern int yydebug;
     NUM_FLOAT = 280,               /* NUM_FLOAT  */
     CHAR_LIT = 281,                /* CHAR_LIT  */
     ID = 282,                      /* ID  */
-    OR = 283,                      /* OR  */
-    AND = 284,                     /* AND  */
-    EQ = 285,                      /* EQ  */
-    NE = 286,                      /* NE  */
-    LE = 287,                      /* LE  */
-    GE = 288,                      /* GE  */
-    PLUS = 289,                    /* PLUS  */
-    NOT = 290,                     /* NOT  */
-    UMINUS = 291,                  /* UMINUS  */
-    CAST = 292,                    /* CAST  */
-    ASSIGN = 293,                  /* ASSIGN  */
-    PLUS_ASSIGN = 294,             /* PLUS_ASSIGN  */
-    MINUS_ASSIGN = 295,            /* MINUS_ASSIGN  */
-    MULT_ASSIGN = 296,             /* MULT_ASSIGN  */
-    DIV_ASSIGN = 297,              /* DIV_ASSIGN  */
-    INC = 298,                     /* INC  */
-    DEC = 299                      /* DEC  */
+    LOWER_THAN_ELSE = 283,         /* LOWER_THAN_ELSE  */
+    OR = 284,                      /* OR  */
+    AND = 285,                     /* AND  */
+    EQ = 286,                      /* EQ  */
+    NE = 287,                      /* NE  */
+    LE = 288,                      /* LE  */
+    GE = 289,                      /* GE  */
+    PLUS = 290,                    /* PLUS  */
+    NOT = 291,                     /* NOT  */
+    UMINUS = 292,                  /* UMINUS  */
+    CAST = 293,                    /* CAST  */
+    ASSIGN = 294,                  /* ASSIGN  */
+    PLUS_ASSIGN = 295,             /* PLUS_ASSIGN  */
+    MINUS_ASSIGN = 296,            /* MINUS_ASSIGN  */
+    MULT_ASSIGN = 297,             /* MULT_ASSIGN  */
+    DIV_ASSIGN = 298,              /* DIV_ASSIGN  */
+    INC = 299,                     /* INC  */
+    DEC = 300                      /* DEC  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -120,7 +121,7 @@ union YYSTYPE
         char* c_args;
     } lista_params;
 
-#line 124 "sin.tab.h"
+#line 125 "sin.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

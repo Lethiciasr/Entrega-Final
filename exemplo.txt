@@ -1,7 +1,10 @@
 main(){
-    int a = 2;
+    int idade = 15;
 
-a++;
-
-print(a);
+    if(idade >= 18){
+        print(1);
+    }
+    else{
+        print(0);
+    }
 }

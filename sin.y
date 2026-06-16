@@ -70,6 +70,10 @@ void adicionar_instrucao(char *texto) {
 %token TOKEN_SWITCH TOKEN_CASE TOKEN_DEFAULT TOKEN_BREAK TOKEN_CONTINUE TOKEN_MAIN TOKEN_RETURN
 %token <valor_str> STRING_LIT BOOL_LIT NUM_INT NUM_FLOAT CHAR_LIT ID
 
+%nonassoc LOWER_THAN_ELSE
+%nonassoc TOKEN_ELSE
+
+%type <valor_str> if_inicio
 %type <info> expressao termo fator declaracao  atribuicao comando comandos comandos_bloco bloco condicao_if laco_while laco_do_while laco_for estrutura_switch casos caso_default elemento_inicializador lista_inicializadores chamada_argumentos chamada_argumentos_lista
 %type <lista_params> parametros_opc parametros_lista
 
@@ -496,34 +500,63 @@ atribuicao
     }
     ;
 
-condicao_if 
-    : TOKEN_IF '(' expressao ')' bloco {
-        char *l_false = novo_label();
-        sprintf(buf, "if (!%s) goto %s;\n", $3.temp, l_false);
-        adicionar_instrucao(buf); // Alterado (Item 7)
-        
-        char *c_out = (char*) malloc(strlen($3.c_expr) + strlen($5.c_expr) + 200);
-        sprintf(c_out, "if (%s) {\n%s}\n", $3.c_expr, $5.c_expr);
-        
-        sprintf(buf, "%s:\n", l_false);
-        adicionar_instrucao(buf); // Alterado (Item 7)
-        $$.c_expr = c_out;
-    }
-    |
-    TOKEN_IF '(' expressao ')' bloco TOKEN_ELSE bloco {
-        char *l_false = novo_label();
-        char *l_fim = novo_label();
-        sprintf(buf, "if (!%s) goto %s;\n", $3.temp, l_false);
-        adicionar_instrucao(buf); // Alterado (Item 7)
-        char *c_out = (char*) malloc(strlen($3.c_expr) + strlen($5.c_expr) + strlen($7.c_expr) + 300);
-        sprintf(c_out, "if (%s) {\n%s} else {\n%s}\n", $3.c_expr, $5.c_expr, $7.c_expr);
-        sprintf(buf, "goto %s;\n%s:\n", l_fim, l_false);
-        adicionar_instrucao(buf); // Alterado (Item 7)
-        
-        sprintf(buf, "%s:\n", l_fim);
-        adicionar_instrucao(buf); // Alterado (Item 7)
-        $$.c_expr = c_out;
-    }
+    if_inicio
+    : TOKEN_IF '(' expressao ')'
+      {
+          char *l_false = novo_label();
+
+          sprintf(buf,
+                  "if (!%s) goto %s;\n",
+                  $3.temp,
+                  l_false);
+
+          adicionar_instrucao(buf);
+
+          $$ = strdup(l_false);
+      }
+    ;
+
+condicao_if
+    : if_inicio bloco %prec LOWER_THAN_ELSE
+      {
+          sprintf(buf, "%s:\n", $1);
+          adicionar_instrucao(buf);
+
+          char *c_out = (char*) malloc(
+              strlen($2.c_expr) +
+              strlen($1) + 200
+          );
+
+          sprintf(c_out,
+                  "if (...) {\n%s}\n",
+                  $2.c_expr);
+
+          $$.c_expr = c_out;
+      }
+
+    | if_inicio bloco TOKEN_ELSE
+      {
+          char *l_fim = novo_label();
+
+          sprintf(buf,
+                  "goto %s;\n%s:\n",
+                  l_fim,
+                  $1);
+
+          adicionar_instrucao(buf);
+
+          $<valor_str>$ = l_fim;
+      }
+      bloco
+      {
+          sprintf(buf,
+                  "%s:\n",
+                  $<valor_str>4);
+
+          adicionar_instrucao(buf);
+
+          $$.c_expr = strdup("");
+      }
     ;
 
 laco_while 
@@ -589,15 +622,16 @@ laco_for
         sprintf(buf, "if (%s) goto %s;\ngoto %s;\n%s:\n", $6.temp, l_corpo, l_fim, l_corpo);
         adicionar_instrucao(buf); // Alterado (Item 7)
         $<valor_str>$ = l_corpo;
-    } atribuicao ')' { escopo_atual++; } comandos_bloco '}' {
+    } atribuicao ')' '{' { escopo_atual++; } comandos_bloco '}' {
         remover_simbolos_do_nivel(escopo_atual);
         escopo_atual--;
         char *l_inicio = $<valor_str>5;
         char *l_fim = pilha_fim[topo_laco - 1];
         sprintf(buf, "goto %s;\n%s:\n", l_inicio, l_fim);
         adicionar_instrucao(buf); // Alterado (Item 7)
-        char *c_out = (char*) malloc(strlen($3.c_expr) + strlen($6.c_expr) + strlen($9.c_expr) + strlen($12.c_expr) + 300);
-        sprintf(c_out, "for (%s; %s; %s) {\n%s}\n", $3.c_expr, $6.c_expr, $9.c_expr, $12.c_expr);
+        char *c_out = (char*) malloc(strlen($3.c_expr) + strlen($6.c_expr) + strlen($9.c_expr) + strlen($13.c_expr) + 300);
+        sprintf(c_out,
+        "for (%s; %s; %s) {\n%s}\n", $3.c_expr, $6.c_expr, $9.c_expr, $13.c_expr);
         topo_laco--;
         $$.c_expr = c_out;
     }
