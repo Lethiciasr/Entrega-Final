@@ -1,0 +1,15 @@
+int calcular_dobro(int valor) {
+    int resultado;
+    resultado = valor * 2;
+    return resultado;
+}
+
+main() {
+    int numero;
+    int dobro;
+
+    numero = 7;
+    dobro = calcular_dobro(numero);
+
+    print(dobro);
+}
