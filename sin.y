@@ -29,6 +29,7 @@ char switch_exp[50] = "";
 char switch_fim[50] = "";
 char pilha_inicio[20][50];
 char pilha_fim[20][50];
+char pilha_continue[100][20];
 int topo_laco = 0;
 
 Simbolo *simbolo_array_atual = NULL;
@@ -73,6 +74,7 @@ void adicionar_instrucao(char *texto) {
 %nonassoc LOWER_THAN_ELSE
 %nonassoc TOKEN_ELSE
 
+%type <info> incremento_for
 %type <valor_str> if_inicio
 %type <info> expressao termo fator declaracao  atribuicao comando comandos comandos_bloco bloco condicao_if laco_while laco_do_while laco_for estrutura_switch casos caso_default elemento_inicializador lista_inicializadores chamada_argumentos chamada_argumentos_lista
 %type <lista_params> parametros_opc parametros_lista
@@ -280,10 +282,16 @@ comando
         if (topo_laco == 0) {
             yyerror("Erro Semantico: 'continue' usado fora de um laco.");
         }
+
         char* c_out = (char*) malloc(100);
-        sprintf(buf, "goto %s;\n", pilha_inicio[topo_laco - 1]);
+
+        sprintf(buf,
+                "goto %s;\n",
+                pilha_continue[topo_laco - 1]);
+
+        adicionar_instrucao(buf);
+
         sprintf(c_out, "continue;\n");
-        adicionar_instrucao(buf); // Substituído para suportar subprogramas (Item 7)
         $$.c_expr = c_out;
     }
     | TOKEN_RETURN expressao ';' {
@@ -460,14 +468,110 @@ atribuicao
             $$.c_expr = c_out;
         }
     }
-    |
-    ID PLUS_ASSIGN expressao  { $$.c_expr = strdup(""); }
-    |
-    ID MINUS_ASSIGN expressao { $$.c_expr = strdup(""); }
-    |
-    ID MULT_ASSIGN expressao  { $$.c_expr = strdup(""); }
-    |
-    ID DIV_ASSIGN expressao   { $$.c_expr = strdup(""); }
+    | ID PLUS_ASSIGN expressao {
+    Simbolo *s = buscar($1);
+
+    if(s == NULL){
+        yyerror("Erro Semantico: Variavel nao declarada.");
+        $$.c_expr = strdup("");
+    } else {
+
+        sprintf(buf,
+                "%s = %s + %s;\n",
+                s->temp,
+                s->temp,
+                $3.temp);
+
+        adicionar_instrucao(buf);
+
+        char *c_out = (char*) malloc(200);
+
+        sprintf(c_out,
+                "%s += %s;\n",
+                s->nome,
+                $3.c_expr);
+
+        $$.c_expr = c_out;
+    }
+}
+    | ID MINUS_ASSIGN expressao {
+    Simbolo *s = buscar($1);
+
+    if(s == NULL){
+        yyerror("Erro Semantico: Variavel nao declarada.");
+        $$.c_expr = strdup("");
+    } else {
+
+        sprintf(buf,
+                "%s = %s - %s;\n",
+                s->temp,
+                s->temp,
+                $3.temp);
+
+        adicionar_instrucao(buf);
+
+        char *c_out = (char*) malloc(200);
+
+        sprintf(c_out,
+                "%s -= %s;\n",
+                s->nome,
+                $3.c_expr);
+
+        $$.c_expr = c_out;
+    }
+}
+    | ID MULT_ASSIGN expressao {
+    Simbolo *s = buscar($1);
+
+    if(s == NULL){
+        yyerror("Erro Semantico: Variavel nao declarada.");
+        $$.c_expr = strdup("");
+    } else {
+
+        sprintf(buf,
+                "%s = %s * %s;\n",
+                s->temp,
+                s->temp,
+                $3.temp);
+
+        adicionar_instrucao(buf);
+
+        char *c_out = (char*) malloc(200);
+
+        sprintf(c_out,
+                "%s *= %s;\n",
+                s->nome,
+                $3.c_expr);
+
+        $$.c_expr = c_out;
+    }
+}
+    | ID DIV_ASSIGN expressao {
+    Simbolo *s = buscar($1);
+
+    if(s == NULL){
+        yyerror("Erro Semantico: Variavel nao declarada.");
+        $$.c_expr = strdup("");
+    } else {
+
+        sprintf(buf,
+                "%s = %s / %s;\n",
+                s->temp,
+                s->temp,
+                $3.temp);
+
+        adicionar_instrucao(buf);
+
+        char *c_out = (char*) malloc(200);
+
+        sprintf(c_out,
+                "%s /= %s;\n",
+                s->nome,
+                $3.c_expr);
+
+        $$.c_expr = c_out;
+    }
+}
     |
     ID '[' expressao ']' ASSIGN expressao {
         Simbolo *s = buscar($1);
@@ -559,29 +663,59 @@ condicao_if
       }
     ;
 
-laco_while 
-    : TOKEN_WHILE {
-        char *l_inicio = novo_label();
-        char *l_fim = novo_label();
-        strcpy(pilha_inicio[topo_laco], l_inicio);
-        strcpy(pilha_fim[topo_laco], l_fim);
-        topo_laco++;
-        sprintf(buf, "%s:\n", l_inicio);
-        adicionar_instrucao(buf); // Alterado (Item 7)
-        $<valor_str>$ = l_inicio;
-    } '(' expressao ')' bloco {
-        char *l_inicio = $<valor_str>2;
-        char *l_fim = pilha_fim[topo_laco - 1];
-        sprintf(buf, "if (!%s) goto %s;\n", $4.temp, l_fim);
-        adicionar_instrucao(buf); // Alterado (Item 7)
-        char *c_out = (char*) malloc(strlen($4.c_expr) + strlen($6.c_expr) + 200);
-        sprintf(c_out, "while (%s) {\n%s}\n", $4.c_expr, $6.c_expr);
-        
-        sprintf(buf, "goto %s;\n%s:\n", l_inicio, l_fim);
-        adicionar_instrucao(buf); // Alterado (Item 7)
-        topo_laco--;
-        $$.c_expr = c_out;
-    }
+laco_while
+    : TOKEN_WHILE
+      {
+          char *l_inicio = novo_label();
+          char *l_fim = novo_label();
+
+          strcpy(pilha_inicio[topo_laco], l_inicio);
+          strcpy(pilha_fim[topo_laco], l_fim);
+          strcpy(pilha_inicio[topo_laco], l_inicio);
+          topo_laco++;
+
+          sprintf(buf, "%s:\n", l_inicio);
+          adicionar_instrucao(buf);
+
+          $<valor_str>$ = l_inicio;
+      }
+      '(' expressao ')'
+      {
+          char *l_fim = pilha_fim[topo_laco - 1];
+
+          sprintf(buf,
+                  "if (!%s) goto %s;\n",
+                  $4.temp,
+                  l_fim);
+
+          adicionar_instrucao(buf);
+      }
+      bloco
+      {
+          char *l_inicio = $<valor_str>2;
+          char *l_fim = pilha_fim[topo_laco - 1];
+
+          sprintf(buf,
+                  "goto %s;\n%s:\n",
+                  l_inicio,
+                  l_fim);
+
+          adicionar_instrucao(buf);
+
+          topo_laco--;
+
+          char *c_out = (char*) malloc(
+              strlen($4.c_expr) +
+              strlen($7.c_expr) + 200
+          );
+
+          sprintf(c_out,
+                  "while (%s) {\n%s}\n",
+                  $4.c_expr,
+                  $7.c_expr);
+
+          $$.c_expr = c_out;
+      }
     ;
 
 laco_do_while 
@@ -605,37 +739,130 @@ laco_do_while
         $$.c_expr = c_out;
     }
     ;
+    incremento_for
+    : ID INC {
+        Simbolo *s = buscar($1);
+
+        char *c_out = (char*) malloc(100);
+
+        sprintf(c_out,
+                "%s = %s + 1;\n",
+                s->temp,
+                s->temp);
+
+        $$.c_expr = c_out;
+    }
+
+    | ID DEC {
+        Simbolo *s = buscar($1);
+
+        char *c_out = (char*) malloc(100);
+
+        sprintf(c_out,
+                "%s = %s - 1;\n",
+                s->temp,
+                s->temp);
+
+        $$.c_expr = c_out;
+    }
+
+    | ID PLUS_ASSIGN expressao {
+        Simbolo *s = buscar($1);
+
+        char *c_out = (char*) malloc(200);
+
+        sprintf(c_out,
+                "%s = %s + %s;\n",
+                s->temp,
+                s->temp,
+                $3.temp);
+
+        $$.c_expr = c_out;
+    }
+
+    | ID MINUS_ASSIGN expressao {
+        Simbolo *s = buscar($1);
+
+        char *c_out = (char*) malloc(200);
+
+        sprintf(c_out,
+                "%s = %s - %s;\n",
+                s->temp,
+                s->temp,
+                $3.temp);
+
+        $$.c_expr = c_out;
+    }
+
+    | ID ASSIGN expressao {
+        Simbolo *s = buscar($1);
+
+        char *c_out = (char*) malloc(200);
+
+        sprintf(c_out,
+                "%s = %s;\n",
+                s->temp,
+                $3.temp);
+
+        $$.c_expr = c_out;
+    }
+;
 
 laco_for 
     : TOKEN_FOR '(' atribuicao ';' {
         char *l_inicio = novo_label();
-        char *l_fim = novo_label();
-        strcpy(pilha_inicio[topo_laco], l_inicio);
-        strcpy(pilha_fim[topo_laco], l_fim);
+    char *l_fim = novo_label();
+    char *l_incremento = novo_label();
+    strcpy(pilha_inicio[topo_laco], l_inicio);
+    strcpy(pilha_fim[topo_laco], l_fim);
+    strcpy(pilha_continue[topo_laco], l_incremento);
         topo_laco++;
         sprintf(buf, "%s:\n", l_inicio);
         adicionar_instrucao(buf); // Alterado (Item 7)
         $<valor_str>$ = l_inicio;
     } expressao ';' {
-        char *l_corpo = novo_label();
-        char *l_fim = pilha_fim[topo_laco - 1];
-        sprintf(buf, "if (%s) goto %s;\ngoto %s;\n%s:\n", $6.temp, l_corpo, l_fim, l_corpo);
-        adicionar_instrucao(buf); // Alterado (Item 7)
-        $<valor_str>$ = l_corpo;
-    } atribuicao ')' '{' { escopo_atual++; } comandos_bloco '}' {
-        remover_simbolos_do_nivel(escopo_atual);
-        escopo_atual--;
-        char *l_inicio = $<valor_str>5;
-        char *l_fim = pilha_fim[topo_laco - 1];
-        sprintf(buf, "goto %s;\n%s:\n", l_inicio, l_fim);
-        adicionar_instrucao(buf); // Alterado (Item 7)
-        char *c_out = (char*) malloc(strlen($3.c_expr) + strlen($6.c_expr) + strlen($9.c_expr) + strlen($13.c_expr) + 300);
-        sprintf(c_out,
-        "for (%s; %s; %s) {\n%s}\n", $3.c_expr, $6.c_expr, $9.c_expr, $13.c_expr);
-        topo_laco--;
-        $$.c_expr = c_out;
-    }
-    ;
+    char *l_fim = pilha_fim[topo_laco - 1];
+
+    sprintf(buf,
+        "if (!%s) goto %s;\n",
+        $6.temp,
+        l_fim);
+
+    adicionar_instrucao(buf);
+} incremento_for ')' '{' { escopo_atual++; } comandos_bloco '}'
+{
+    remover_simbolos_do_nivel(escopo_atual);
+    escopo_atual--;
+
+    char *l_inicio = $<valor_str>5;
+    char *l_fim = pilha_fim[topo_laco - 1];
+    char *l_incremento = pilha_continue[topo_laco - 1];
+
+    sprintf(buf, "%s:\n", l_incremento);
+    adicionar_instrucao(buf);
+
+    adicionar_instrucao($9.c_expr);
+
+    sprintf(buf, "goto %s;\n%s:\n", l_inicio, l_fim);
+    adicionar_instrucao(buf);
+
+    char *c_out = (char*) malloc(
+        strlen($3.c_expr) +
+        strlen($6.c_expr) +
+        strlen($9.c_expr) +
+        strlen($13.c_expr) + 300);
+
+    sprintf(c_out,
+        "for (%s; %s; %s) {\n%s}\n",
+        $3.c_expr,
+        $6.c_expr,
+        $9.c_expr,
+        $13.c_expr);
+
+    topo_laco--;
+    $$.c_expr = c_out;
+}
+;
 
 estrutura_switch 
     : TOKEN_SWITCH '(' expressao ')' {

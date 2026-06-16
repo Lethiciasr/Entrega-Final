@@ -49,20 +49,20 @@
 "++"        { return INC; }
 "--"        { return DEC; }
 
-[0-9]+      { 
-                yylval.valor_str = strdup(yytext); 
-                return NUM_INT; 
-            }
-
-[a-zA-Z_][a-zA-Z0-9_]* { 
-                yylval.valor_str = strdup(yytext); 
-                return ID; 
-            }
-
-[0-9]+\.[0-9]+ { 
+[0-9]+\.[0-9]+ {
                 yylval.valor_str = strdup(yytext);
-                return NUM_FLOAT; 
-                }
+                return NUM_FLOAT;
+            }
+
+[0-9]+ {
+                yylval.valor_str = strdup(yytext);
+                return NUM_INT;
+            }
+
+[a-zA-Z_][a-zA-Z0-9_]* {
+                yylval.valor_str = strdup(yytext);
+                return ID;
+            }
 
 '[a-zA-Z0-9]' { yylval.valor_str = strdup(yytext); return CHAR_LIT; }
 
